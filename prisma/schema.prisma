@@ -1,0 +1,90 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+model Profile {
+  id                  String   @id @db.Uuid
+  displayName         String?  @map("display_name")
+  locale              String   @default("es")
+  timezone            String   @default("America/Merida")
+  currentIdentity     String?  @map("current_identity")
+  targetIdentity      String?  @map("target_identity")
+  whyTransform        String?  @map("why_transform")
+  coreValues          String[] @default([]) @map("core_values")
+  onboardingCompleted Boolean  @default(false) @map("onboarding_completed")
+  dailyXpGoal         Int      @default(50) @map("daily_xp_goal")
+  createdAt           DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt           DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  habits UserHabit[]
+  habitCompletions HabitCompletion[]
+
+  @@map("profiles")
+}
+
+model HabitTemplate {
+  id              String   @id @default(uuid()) @db.Uuid
+  slug            String   @unique
+  titleI18n       Json     @map("title_i18n")
+  descriptionI18n Json     @map("description_i18n")
+  category        String
+  habitType       String   @map("habit_type")
+  routinePeriod   String   @map("routine_period")
+  defaultXp       Int      @map("default_xp")
+  sortOrder       Int      @default(0) @map("sort_order")
+  active          Boolean  @default(true)
+  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt       DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  habits UserHabit[]
+
+  @@map("habit_templates")
+}
+
+model UserHabit {
+  id            String    @id @default(uuid()) @db.Uuid
+  userId        String    @map("user_id") @db.Uuid
+  templateId    String?   @map("template_id") @db.Uuid
+  customTitle   String?   @map("custom_title")
+  category      String
+  habitType     String    @map("habit_type")
+  routinePeriod String    @map("routine_period")
+  targetPerWeek Int       @default(7) @map("target_per_week")
+  xpReward      Int       @default(10) @map("xp_reward")
+  position      Int       @default(0)
+  isActive      Boolean   @default(true) @map("is_active")
+  archivedAt    DateTime? @map("archived_at") @db.Timestamptz(6)
+  createdAt     DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt     DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  user     Profile        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  template HabitTemplate? @relation(fields: [templateId], references: [id], onDelete: SetNull)
+  completions HabitCompletion[]
+
+  @@index([userId, isActive])
+  @@map("user_habits")
+}
+
+model HabitCompletion {
+  id            String   @id @default(uuid()) @db.Uuid
+  userId        String   @map("user_id") @db.Uuid
+  userHabitId   String   @map("user_habit_id") @db.Uuid
+  localDate     DateTime @map("local_date") @db.Date
+  completedAt   DateTime @default(now()) @map("completed_at") @db.Timestamptz(6)
+  timezone      String   @default("America/Merida")
+  clientEventId String?  @map("client_event_id") @db.Uuid
+
+  user  Profile   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  habit UserHabit @relation(fields: [userHabitId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, userHabitId, localDate])
+  @@unique([userId, clientEventId])
+  @@index([userId, localDate])
+  @@map("habit_completions")
+}

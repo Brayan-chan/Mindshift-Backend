@@ -1,0 +1,55 @@
+{
+  "name": "mindshift-backend",
+  "version": "1.0.0",
+  "description": "Backend API para Mindshift - Sistema de Gestión de Habitos de Éxito",
+  "main": "src/index.js",
+  "type": "module",
+  "packageManager": "pnpm@9.0.4",
+  "scripts": {
+    "start": "node src/index.js",
+    "dev": "nodemon src/index.js",
+    "prisma:generate": "prisma generate",
+    "prisma:migrate": "prisma migrate dev",
+    "prisma:studio": "prisma studio",
+    "test": "node --test",
+    "postinstall": "prisma generate"
+  },
+  "keywords": [
+    "mindshift",
+    "api",
+    "habits",
+    "success"
+  ],
+  "author": "Mindshift Team",
+  "license": "ISC",
+  "dependencies": {
+    "@prisma/client": "^5.22.0",
+    "@supabase/supabase-js": "^2.95.3",
+    "bcryptjs": "^3.0.3",
+    "cookie-parser": "^1.4.7",
+    "cors": "^2.8.6",
+    "csv-parse": "^6.2.1",
+    "dotenv": "^17.3.1",
+    "express": "^5.2.1",
+    "express-session": "^1.19.0",
+    "helmet": "^8.1.0",
+    "jsonwebtoken": "^9.0.3",
+    "morgan": "^1.10.1",
+    "multer": "^2.1.1",
+    "nodemailer": "^8.0.10",
+    "passport": "^0.7.0",
+    "passport-google-oauth20": "^2.0.0",
+    "qrcode": "^1.5.4",
+    "uuid": "^13.0.0",
+    "ws": "^8.21.0",
+    "zod": "^4.3.6"
+  },
+  "devDependencies": {
+    "@types/bcryptjs": "^3.0.0",
+    "@types/express": "^5.0.6",
+    "@types/jsonwebtoken": "^9.0.10",
+    "@types/node": "^25.3.0",
+    "nodemon": "^3.1.13",
+    "prisma": "^5.22.0"
+  }
+}
