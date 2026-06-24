@@ -24,6 +24,7 @@ const DEFAULT_HABITS = [
 }));
 
 let devHabitsSeeded = false;
+const seededUsers = new Set();
 
 function getLocalDateKey(date = new Date()) {
   const year = date.getFullYear();
@@ -80,16 +81,16 @@ function mapHabit(habit, completions) {
   };
 }
 
-export async function ensureDevUserHabits() {
-  if (devHabitsSeeded) {
+export async function ensureUserHabits(userId = env.DEV_USER_ID) {
+  if (seededUsers.has(userId) || (userId === env.DEV_USER_ID && devHabitsSeeded)) {
     return;
   }
 
   const profile = await prisma.profile.upsert({
-    where: { id: env.DEV_USER_ID },
+    where: { id: userId },
     create: {
-      id: env.DEV_USER_ID,
-      displayName: 'MindShift Dev',
+      id: userId,
+      displayName: userId === env.DEV_USER_ID ? 'MindShift Dev' : 'MindShift User',
       locale: 'es',
       timezone: 'America/Merida',
     },
@@ -109,7 +110,8 @@ export async function ensureDevUserHabits() {
   });
 
   if (existingDefaultHabitCount >= DEFAULT_HABITS.length) {
-    devHabitsSeeded = true;
+    seededUsers.add(userId);
+    if (userId === env.DEV_USER_ID) devHabitsSeeded = true;
     return;
   }
 
@@ -161,15 +163,16 @@ export async function ensureDevUserHabits() {
     }
   }
 
-  devHabitsSeeded = true;
+  seededUsers.add(userId);
+  if (userId === env.DEV_USER_ID) devHabitsSeeded = true;
 }
 
-export async function listHabits() {
-  await ensureDevUserHabits();
+export async function listHabits(userId = env.DEV_USER_ID) {
+  await ensureUserHabits(userId);
 
   const habits = await prisma.userHabit.findMany({
     where: {
-      userId: env.DEV_USER_ID,
+      userId,
       archivedAt: null,
       isActive: true,
     },
@@ -185,17 +188,17 @@ export async function listHabits() {
   return habits.map((habit) => mapHabit(habit, habit.completions));
 }
 
-export async function createHabit(input) {
-  await ensureDevUserHabits();
+export async function createHabit(userId = env.DEV_USER_ID, input) {
+  await ensureUserHabits(userId);
 
   const maxPosition = await prisma.userHabit.aggregate({
-    where: { userId: env.DEV_USER_ID },
+    where: { userId },
     _max: { position: true },
   });
 
   const habit = await prisma.userHabit.create({
     data: {
-      userId: env.DEV_USER_ID,
+      userId,
       customTitle: input.title,
       category: input.category,
       habitType: input.type,
@@ -213,11 +216,11 @@ export async function createHabit(input) {
   return mapHabit(habit, habit.completions);
 }
 
-export async function setHabitCompletion(habitId, completed) {
+export async function setHabitCompletion(userId = env.DEV_USER_ID, habitId, completed) {
   const habit = await prisma.userHabit.findFirst({
     where: {
       id: habitId,
-      userId: env.DEV_USER_ID,
+      userId,
       archivedAt: null,
     },
     select: {
@@ -232,8 +235,8 @@ export async function setHabitCompletion(habitId, completed) {
   const today = toDateOnly(getLocalDateKey());
   const existingCompletion = await prisma.habitCompletion.findUnique({
     where: {
-      userId_userHabitId_localDate: {
-        userId: env.DEV_USER_ID,
+        userId_userHabitId_localDate: {
+        userId,
         userHabitId: habitId,
         localDate: today,
       },
@@ -243,7 +246,7 @@ export async function setHabitCompletion(habitId, completed) {
   if (completed && !existingCompletion) {
     await prisma.habitCompletion.create({
       data: {
-        userId: env.DEV_USER_ID,
+        userId,
         userHabitId: habitId,
         localDate: today,
         timezone: 'America/Merida',
@@ -266,17 +269,17 @@ export async function setHabitCompletion(habitId, completed) {
   };
 }
 
-export async function toggleHabit(habitId) {
+export async function toggleHabit(userId = env.DEV_USER_ID, habitId) {
   const today = toDateOnly(getLocalDateKey());
   const existingCompletion = await prisma.habitCompletion.findUnique({
     where: {
       userId_userHabitId_localDate: {
-        userId: env.DEV_USER_ID,
+        userId,
         userHabitId: habitId,
         localDate: today,
       },
     },
   });
 
-  return setHabitCompletion(habitId, !existingCompletion);
+  return setHabitCompletion(userId, habitId, !existingCompletion);
 }

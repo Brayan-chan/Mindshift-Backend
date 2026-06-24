@@ -3,8 +3,11 @@ import { z } from 'zod';
 import { createHabit, listHabits, setHabitCompletion, toggleHabit } from '../services/habits.service.js';
 import { validate } from '../middlewares/validate.middleware.js';
 import { asyncHandler } from '../utils/async-handler.js';
+import { optionalAuth } from '../middlewares/auth.middleware.js';
 
 const router = Router();
+
+router.use(optionalAuth);
 
 const createHabitSchema = z.object({
   body: z.object({
@@ -30,8 +33,8 @@ const setCompletionSchema = z.object({
 
 router.get(
   '/',
-  asyncHandler(async (_req, res) => {
-    const habits = await listHabits();
+  asyncHandler(async (req, res) => {
+    const habits = await listHabits(req.user.id);
     res.json({ data: habits, error: null });
   }),
 );
@@ -40,7 +43,7 @@ router.post(
   '/',
   validate(createHabitSchema),
   asyncHandler(async (req, res) => {
-    const habit = await createHabit(req.validated.body);
+    const habit = await createHabit(req.user.id, req.validated.body);
     res.status(201).json({ data: habit, error: null });
   }),
 );
@@ -48,7 +51,7 @@ router.post(
 router.post(
   '/:habitId/toggle',
   asyncHandler(async (req, res) => {
-    const habit = await toggleHabit(req.params.habitId);
+    const habit = await toggleHabit(req.user.id, req.params.habitId);
     res.json({ data: habit, error: null });
   }),
 );
@@ -58,6 +61,7 @@ router.patch(
   validate(setCompletionSchema),
   asyncHandler(async (req, res) => {
     const habit = await setHabitCompletion(
+      req.user.id,
       req.validated.params.habitId,
       req.validated.body.completed,
     );
