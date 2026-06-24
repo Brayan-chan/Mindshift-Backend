@@ -25,8 +25,8 @@ app.use((req, _res, next) => {
   next();
 });
 
-// Ruta de prueba 
-app.get('/api/health', (req, res) => {
+// Ruta de prueba
+app.get(['/api/health', '/api/v1/health'], (req, res) => {
   res.status(200).json({ 
     success: true, 
     message: 'La API de Mindshift está funcionando correctamente',
