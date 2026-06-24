@@ -10,6 +10,8 @@ datasource db {
 
 model Profile {
   id                  String   @id @db.Uuid
+  email               String?  @unique
+  username            String?  @unique
   displayName         String?  @map("display_name")
   locale              String   @default("es")
   timezone            String   @default("America/Merida")
@@ -19,13 +21,26 @@ model Profile {
   coreValues          String[] @default([]) @map("core_values")
   onboardingCompleted Boolean  @default(false) @map("onboarding_completed")
   dailyXpGoal         Int      @default(50) @map("daily_xp_goal")
+  appSettings         Json     @default("{}") @map("app_settings")
   createdAt           DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt           DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
 
   habits UserHabit[]
   habitCompletions HabitCompletion[]
+  appState UserAppState?
 
   @@map("profiles")
+}
+
+model UserAppState {
+  userId    String   @id @map("user_id") @db.Uuid
+  data      Json     @default("{}")
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  user Profile @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("user_app_states")
 }
 
 model HabitTemplate {
