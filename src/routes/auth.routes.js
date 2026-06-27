@@ -12,7 +12,7 @@ const usernameSchema = z.string()
   .trim()
   .min(3)
   .max(24)
-  .regex(/^[a-zA-Z0-9_]+$/, 'Username can only include letters, numbers and underscores')
+  .regex(/^[a-zA-Z0-9_-]+$/, 'Username can only include letters, numbers, underscores and hyphens')
   .transform((value) => value.toLowerCase());
 
 const registerSchema = z.object({
