@@ -50,6 +50,59 @@ function getDateOnlyKey(value) {
   return value.toISOString().slice(0, 10);
 }
 
+async function normalizeHabitCompletionDates(userId) {
+  const completions = await prisma.habitCompletion.findMany({
+    where: { userId },
+    orderBy: [{ completedAt: 'asc' }, { id: 'asc' }],
+  });
+  const seen = new Set();
+
+  for (const completion of completions) {
+    const timezone = completion.timezone || 'America/Merida';
+    const desiredLocalDateKey = getLocalDateKey(completion.completedAt, timezone);
+    const desiredLocalDate = toDateOnly(desiredLocalDateKey);
+    const key = `${completion.userId}:${completion.userHabitId}:${desiredLocalDateKey}`;
+
+    if (seen.has(key)) {
+      await prisma.habitCompletion.delete({
+        where: { id: completion.id },
+      });
+      continue;
+    }
+
+    seen.add(key);
+
+    if (getDateOnlyKey(completion.localDate) === desiredLocalDateKey) {
+      continue;
+    }
+
+    const existing = await prisma.habitCompletion.findUnique({
+      where: {
+        userId_userHabitId_localDate: {
+          userId: completion.userId,
+          userHabitId: completion.userHabitId,
+          localDate: desiredLocalDate,
+        },
+      },
+    });
+
+    if (existing && existing.id !== completion.id) {
+      await prisma.habitCompletion.delete({
+        where: { id: completion.id },
+      });
+      continue;
+    }
+
+    await prisma.habitCompletion.update({
+      where: { id: completion.id },
+      data: {
+        localDate: desiredLocalDate,
+        timezone,
+      },
+    });
+  }
+}
+
 function calculateHabitStreak(history) {
   let streak = 0;
   const checkDate = new Date();
@@ -249,6 +302,7 @@ export async function ensureUserHabits(userId = env.DEV_USER_ID) {
 export async function listHabits(userId = env.DEV_USER_ID) {
   await ensureUserHabits(userId);
   await dedupeDefaultHabits(userId);
+  await normalizeHabitCompletionDates(userId);
 
   const habits = await prisma.userHabit.findMany({
     where: {
