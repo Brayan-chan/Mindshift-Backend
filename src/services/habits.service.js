@@ -81,6 +81,75 @@ function mapHabit(habit, completions) {
   };
 }
 
+async function dedupeDefaultHabits(userId) {
+  const defaultSlugs = DEFAULT_HABITS.map((habit) => `default-${habit.legacyId}`);
+  const defaultHabits = await prisma.userHabit.findMany({
+    where: {
+      userId,
+      archivedAt: null,
+      templateId: { not: null },
+      template: {
+        slug: { in: defaultSlugs },
+      },
+    },
+    include: {
+      template: true,
+      completions: true,
+    },
+  });
+
+  const groups = defaultHabits.reduce((acc, habit) => {
+    if (!habit.templateId) return acc;
+
+    acc[habit.templateId] = acc[habit.templateId] ?? [];
+    acc[habit.templateId].push(habit);
+    return acc;
+  }, {});
+
+  for (const habits of Object.values(groups)) {
+    if (habits.length <= 1) continue;
+
+    const [keeper, ...duplicates] = habits.sort((a, b) => {
+      const completionDelta = b.completions.length - a.completions.length;
+      if (completionDelta !== 0) return completionDelta;
+      return a.createdAt.getTime() - b.createdAt.getTime();
+    });
+
+    for (const duplicate of duplicates) {
+      for (const completion of duplicate.completions) {
+        const existing = await prisma.habitCompletion.findUnique({
+          where: {
+            userId_userHabitId_localDate: {
+              userId,
+              userHabitId: keeper.id,
+              localDate: completion.localDate,
+            },
+          },
+        });
+
+        if (existing) {
+          await prisma.habitCompletion.delete({
+            where: { id: completion.id },
+          });
+        } else {
+          await prisma.habitCompletion.update({
+            where: { id: completion.id },
+            data: { userHabitId: keeper.id },
+          });
+        }
+      }
+
+      await prisma.userHabit.update({
+        where: { id: duplicate.id },
+        data: {
+          isActive: false,
+          archivedAt: new Date(),
+        },
+      });
+    }
+  }
+}
+
 export async function ensureUserHabits(userId = env.DEV_USER_ID) {
   if (seededUsers.has(userId) || (userId === env.DEV_USER_ID && devHabitsSeeded)) {
     return;
@@ -96,6 +165,8 @@ export async function ensureUserHabits(userId = env.DEV_USER_ID) {
     },
     update: {},
   });
+
+  await dedupeDefaultHabits(profile.id);
 
   const existingDefaultHabitCount = await prisma.userHabit.count({
     where: {
@@ -169,6 +240,7 @@ export async function ensureUserHabits(userId = env.DEV_USER_ID) {
 
 export async function listHabits(userId = env.DEV_USER_ID) {
   await ensureUserHabits(userId);
+  await dedupeDefaultHabits(userId);
 
   const habits = await prisma.userHabit.findMany({
     where: {
