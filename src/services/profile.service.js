@@ -117,14 +117,20 @@ export async function getAppState(userId) {
 }
 
 export async function saveAppState(userId, data) {
+  const current = await getAppState(userId);
+  const nextData = {
+    ...(current && typeof current === 'object' && !Array.isArray(current) ? current : {}),
+    ...data,
+  };
+
   const state = await prisma.userAppState.upsert({
     where: { userId },
     create: {
       userId,
-      data,
+      data: nextData,
     },
     update: {
-      data,
+      data: nextData,
     },
   });
 
