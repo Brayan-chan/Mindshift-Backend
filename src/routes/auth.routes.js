@@ -39,6 +39,14 @@ const loginSchema = z.object({
   query: z.object({}).optional(),
 });
 
+const refreshSchema = z.object({
+  body: z.object({
+    refreshToken: z.string().trim().min(10),
+  }),
+  params: z.object({}).optional(),
+  query: z.object({}).optional(),
+});
+
 router.post(
   '/register',
   validate(registerSchema),
@@ -123,6 +131,40 @@ router.post(
       email: data.user.email,
       username: data.user.user_metadata?.username,
       displayName: data.user.user_metadata?.display_name,
+    });
+
+    res.json({
+      data: {
+        ...data,
+        profile: mapProfile(profile),
+      },
+      error: null,
+    });
+  }),
+);
+
+router.post(
+  '/refresh',
+  validate(refreshSchema),
+  asyncHandler(async (req, res) => {
+    if (!supabaseAuth) {
+      throw new ApiError(503, 'SUPABASE_NOT_CONFIGURED', 'Supabase auth client is not configured');
+    }
+
+    const { refreshToken } = req.validated.body;
+    const { data, error } = await supabaseAuth.auth.refreshSession({
+      refresh_token: refreshToken,
+    });
+
+    if (error || !data.session || !data.user) {
+      throw new ApiError(401, 'AUTH_REFRESH_FAILED', error?.message ?? 'Could not refresh session');
+    }
+
+    const profile = await ensureProfile({
+      id: data.user?.id,
+      email: data.user?.email,
+      username: data.user?.user_metadata?.username,
+      displayName: data.user?.user_metadata?.display_name,
     });
 
     res.json({
