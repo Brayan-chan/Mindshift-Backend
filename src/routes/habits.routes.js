@@ -24,6 +24,8 @@ const setCompletionSchema = z.object({
   body: z.object({
     completed: z.boolean(),
     clientMutationId: z.string().optional(),
+    localDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+    timezone: z.string().min(1).max(80).optional(),
   }),
   params: z.object({
     habitId: z.string().uuid(),
@@ -64,6 +66,10 @@ router.patch(
       req.user.id,
       req.validated.params.habitId,
       req.validated.body.completed,
+      {
+        localDate: req.validated.body.localDate,
+        timezone: req.validated.body.timezone,
+      },
     );
     res.json({
       data: {

@@ -26,16 +26,24 @@ const DEFAULT_HABITS = [
 let devHabitsSeeded = false;
 const seededUsers = new Set();
 
-function getLocalDateKey(date = new Date()) {
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, '0');
-  const day = String(date.getDate()).padStart(2, '0');
+function getLocalDateKey(date = new Date(), timezone = 'America/Merida') {
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: timezone,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).formatToParts(date);
+  const values = Object.fromEntries(parts.map(part => [part.type, part.value]));
 
-  return `${year}-${month}-${day}`;
+  return `${values.year}-${values.month}-${values.day}`;
 }
 
 function toDateOnly(dateKey) {
   return new Date(`${dateKey}T00:00:00.000Z`);
+}
+
+function normalizeDateKey(dateKey) {
+  return /^\d{4}-\d{2}-\d{2}$/.test(dateKey ?? '') ? dateKey : getLocalDateKey();
 }
 
 function getDateOnlyKey(value) {
@@ -288,7 +296,7 @@ export async function createHabit(userId = env.DEV_USER_ID, input) {
   return mapHabit(habit, habit.completions);
 }
 
-export async function setHabitCompletion(userId = env.DEV_USER_ID, habitId, completed) {
+export async function setHabitCompletion(userId = env.DEV_USER_ID, habitId, completed, options = {}) {
   const habit = await prisma.userHabit.findFirst({
     where: {
       id: habitId,
@@ -304,7 +312,9 @@ export async function setHabitCompletion(userId = env.DEV_USER_ID, habitId, comp
     throw new ApiError(404, 'HABIT_NOT_FOUND', 'Habit not found');
   }
 
-  const today = toDateOnly(getLocalDateKey());
+  const localDateKey = normalizeDateKey(options.localDate);
+  const timezone = options.timezone || 'America/Merida';
+  const today = toDateOnly(localDateKey);
   const existingCompletion = await prisma.habitCompletion.findUnique({
     where: {
         userId_userHabitId_localDate: {
@@ -321,7 +331,7 @@ export async function setHabitCompletion(userId = env.DEV_USER_ID, habitId, comp
         userId,
         userHabitId: habitId,
         localDate: today,
-        timezone: 'America/Merida',
+        timezone,
       },
     });
   }
@@ -336,7 +346,7 @@ export async function setHabitCompletion(userId = env.DEV_USER_ID, habitId, comp
     id: habitId,
     completedToday: completed,
     history: {
-      [getLocalDateKey()]: completed,
+      [localDateKey]: completed,
     },
   };
 }
