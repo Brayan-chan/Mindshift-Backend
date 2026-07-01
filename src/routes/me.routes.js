@@ -8,6 +8,7 @@ import {
   getProfile,
   saveAppState,
   updateIdentity,
+  updateProfile,
   updateSettings,
 } from '../services/profile.service.js';
 
@@ -35,6 +36,14 @@ const settingsSchema = z.object({
   query: z.object({}).optional(),
 });
 
+const profileSchema = z.object({
+  body: z.object({
+    displayName: z.string().trim().min(1).max(80),
+  }),
+  params: z.object({}).optional(),
+  query: z.object({}).optional(),
+});
+
 const appStateSchema = z.object({
   body: z.object({
     data: z.object({}).passthrough(),
@@ -47,6 +56,15 @@ router.get(
   '/',
   asyncHandler(async (req, res) => {
     const profile = await getProfile(req.user.id);
+    res.json({ data: profile, error: null });
+  }),
+);
+
+router.patch(
+  '/profile',
+  validate(profileSchema),
+  asyncHandler(async (req, res) => {
+    const profile = await updateProfile(req.user.id, req.validated.body);
     res.json({ data: profile, error: null });
   }),
 );
