@@ -21,6 +21,9 @@ const DEFAULT_APP_SETTINGS = {
     defaultDuration: 25,
     breakDuration: 5,
     longBreakAfter: 4,
+    strictModeEnabled: true,
+    strictPin: '1234',
+    exitPenalty: 10,
   },
 };
 
@@ -89,6 +92,17 @@ export async function updateIdentity(userId, input) {
       whyTransform: input.whyTransform,
       coreValues: input.coreValues,
       onboardingCompleted: input.setupComplete,
+    },
+  });
+
+  return mapProfile(profile);
+}
+
+export async function updateProfile(userId, input) {
+  const profile = await prisma.profile.update({
+    where: { id: userId },
+    data: {
+      displayName: input.displayName,
     },
   });
 
